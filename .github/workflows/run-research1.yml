@@ -1,8 +1,13 @@
-name: research1-run
+name: research1-run (${{ inputs.run_tag }})
 
 on:
   workflow_dispatch:
     inputs:
+      run_tag:
+        description: "Unique tag for this run (e.g. fr-20251027-1)"
+        required: true
+        default: local-1
+        type: string
       countries:
         description: "Comma CC list (e.g. FR,DE or ALL)"
         required: true
@@ -114,6 +119,22 @@ jobs:
             $([ "${{ inputs.keyword_shard_2gram }}" = "true" ] && echo "--keyword-shard-2gram") \
             --session-rotate-pages "${{ inputs.session_rotate_pages }}"
 
+      - name: Prune already-have files
+        run: |
+          set -e
+          HAVE_GZ="runner/state/${{ inputs.run_tag }}/have.txt.gz"
+          mkdir -p /tmp
+          if [ -f "$HAVE_GZ" ]; then
+            gunzip -c "$HAVE_GZ" | sed 's/\r$//' | sort -u > /tmp/have.txt
+          else
+            : > /tmp/have.txt
+          fi
+          ( cd out && find . -type f -name '*.json' -print | sed 's|^\./||' | sort -u ) > /tmp/all.txt
+          comm -12 /tmp/all.txt /tmp/have.txt > /tmp/dups.txt || true
+          while IFS= read -r rel; do
+            [ -n "$rel" ] && rm -f "out/$rel" || true
+          done < /tmp/dups.txt
+
       - name: Package artifacts (per country directory)
         run: |
           mkdir -p artifacts
@@ -121,13 +142,15 @@ jobs:
           shopt -s nullglob
           for d in */ ; do
             d="${d%/}"
-            zip -r "../artifacts/${d}.zip" "$d"
+            if find "$d" -type f -name '*.json' -print -quit | grep -q . ; then
+              zip -r "../artifacts/${d}.zip" "$d"
+            fi
           done
           cd -
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: research1-output-${{ github.run_id }}
+          name: research1-output-${{ inputs.run_tag }}
           path: artifacts/*.zip
           compression-level: 0
