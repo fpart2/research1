@@ -9,71 +9,11 @@ on:
         required: true
         default: local-1
         type: string
-      countries:
-        description: "Comma CC list (e.g. FR,DE or ALL)"
+      args:
+        description: "All CLI flags as a single string (e.g. --countries FR --results-per-page 50 ...)"
         required: true
-        default: FR,DE
-      results_per_page:
-        description: "Results per page (max 50)"
-        required: true
-        default: 50
-        type: number
-      pages:
-        description: "'all' or integer cap per partition"
-        required: true
-        default: all
+        default: ""
         type: string
-      max_pages_per_query:
-        description: "Keep partitions ≤ this (<200)"
-        required: true
-        default: 150
-        type: number
-      detail_concurrency:
-        description: "Parallel detail workers"
-        required: true
-        default: 12
-        type: number
-      detail_retries:
-        required: true
-        default: 8
-        type: number
-      search_retries:
-        required: true
-        default: 6
-        type: number
-      page_delay_ms:
-        required: true
-        default: 120
-        type: number
-      log_every:
-        required: true
-        default: 300
-        type: number
-      scan_max_files:
-        required: true
-        default: 2000
-        type: number
-      sample_pages:
-        required: true
-        default: 3
-        type: number
-      sample_details_per_page:
-        required: true
-        default: 15
-        type: number
-      probe_retries:
-        required: true
-        default: 1
-        type: number
-      keyword_shard_2gram:
-        description: "Enable deep keyword shards"
-        required: true
-        default: true
-        type: boolean
-      session_rotate_pages:
-        required: true
-        default: 0
-        type: number
 
 jobs:
   run:
@@ -102,23 +42,8 @@ jobs:
       - name: Run task
         run: |
           mkdir -p out
-          python runner/research1_task.py \
-            --out out \
-            --countries "${{ inputs.countries }}" \
-            --results-per-page "${{ inputs.results_per_page }}" \
-            --pages "${{ inputs.pages }}" \
-            --max-pages-per-query "${{ inputs.max_pages_per_query }}" \
-            --detail-concurrency "${{ inputs.detail_concurrency }}" \
-            --detail-retries "${{ inputs.detail_retries }}" \
-            --search-retries "${{ inputs.search_retries }}" \
-            --page-delay-ms "${{ inputs.page_delay_ms }}" \
-            --log-every "${{ inputs.log_every }}" \
-            --scan-max-files "${{ inputs.scan_max_files }}" \
-            --sample-pages "${{ inputs.sample_pages }}" \
-            --sample-details-per-page "${{ inputs.sample_details_per_page }}" \
-            --probe-retries "${{ inputs.probe_retries }}" \
-            $([ "${{ inputs.keyword_shard_2gram }}" = "true" ] && echo "--keyword-shard-2gram") \
-            --session-rotate-pages "${{ inputs.session_rotate_pages }}"
+          # All flags come in via ${{ inputs.args }}
+          python runner/research1_task.py --out out ${{ inputs.args }}
 
       - name: Prune already-have files
         run: |
