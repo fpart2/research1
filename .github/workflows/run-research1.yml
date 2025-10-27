@@ -1,0 +1,133 @@
+name: research1-run
+
+on:
+  workflow_dispatch:
+    inputs:
+      countries:
+        description: "Comma CC list (e.g. FR,DE or ALL)"
+        required: true
+        default: FR,DE
+      results_per_page:
+        description: "Results per page (max 50)"
+        required: true
+        default: 50
+        type: number
+      pages:
+        description: "'all' or integer cap per partition"
+        required: true
+        default: all
+        type: string
+      max_pages_per_query:
+        description: "Keep partitions ≤ this (<200)"
+        required: true
+        default: 150
+        type: number
+      detail_concurrency:
+        description: "Parallel detail workers"
+        required: true
+        default: 12
+        type: number
+      detail_retries:
+        required: true
+        default: 8
+        type: number
+      search_retries:
+        required: true
+        default: 6
+        type: number
+      page_delay_ms:
+        required: true
+        default: 120
+        type: number
+      log_every:
+        required: true
+        default: 300
+        type: number
+      scan_max_files:
+        required: true
+        default: 2000
+        type: number
+      sample_pages:
+        required: true
+        default: 3
+        type: number
+      sample_details_per_page:
+        required: true
+        default: 15
+        type: number
+      probe_retries:
+        required: true
+        default: 1
+        type: number
+      keyword_shard_2gram:
+        description: "Enable deep keyword shards"
+        required: true
+        default: true
+        type: boolean
+      session_rotate_pages:
+        required: true
+        default: 0
+        type: number
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout public repo
+        uses: actions/checkout@v4
+
+      - name: Checkout private runner repo
+        uses: actions/checkout@v4
+        with:
+          repository: <YOUR_USERNAME>/research1-runner
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          path: runner
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install -U pip
+          if [ -f runner/requirements.txt ]; then pip install -r runner/requirements.txt; fi
+
+      - name: Run task
+        run: |
+          mkdir -p out
+          python runner/research1_task.py \
+            --out out \
+            --countries "${{ inputs.countries }}" \
+            --results-per-page "${{ inputs.results_per_page }}" \
+            --pages "${{ inputs.pages }}" \
+            --max-pages-per-query "${{ inputs.max_pages_per_query }}" \
+            --detail-concurrency "${{ inputs.detail_concurrency }}" \
+            --detail-retries "${{ inputs.detail_retries }}" \
+            --search-retries "${{ inputs.search_retries }}" \
+            --page-delay-ms "${{ inputs.page_delay_ms }}" \
+            --log-every "${{ inputs.log_every }}" \
+            --scan-max-files "${{ inputs.scan_max_files }}" \
+            --sample-pages "${{ inputs.sample_pages }}" \
+            --sample-details-per-page "${{ inputs.sample_details_per_page }}" \
+            --probe-retries "${{ inputs.probe_retries }}" \
+            $([ "${{ inputs.keyword_shard_2gram }}" = "true" ] && echo "--keyword-shard-2gram") \
+            --session-rotate-pages "${{ inputs.session_rotate_pages }}"
+
+      - name: Package artifacts (per country directory)
+        run: |
+          mkdir -p artifacts
+          cd out || exit 0
+          shopt -s nullglob
+          for d in */ ; do
+            d="${d%/}"
+            zip -r "../artifacts/${d}.zip" "$d"
+          done
+          cd -
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: research1-output-${{ github.run_id }}
+          path: artifacts/*.zip
+          compression-level: 0
