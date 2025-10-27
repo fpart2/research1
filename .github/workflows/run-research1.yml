@@ -1,4 +1,5 @@
-name: research1-run (${{ inputs.run_tag }})
+name: research1-run
+run-name: research1-run (${{ inputs.run_tag }})
 
 on:
   workflow_dispatch:
