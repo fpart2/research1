@@ -46,12 +46,14 @@ jobs:
           if [ -f runner/requirements.txt ]; then pip install -r runner/requirements.txt; fi
 
       - name: Run task
+        timeout-minutes: 330   # ~5.5h, leaves time to package/upload before GH kills at 6h
         run: |
           mkdir -p out
           # All flags come in via ${{ inputs.args }}
           python runner/research1_task.py --out out ${{ inputs.args }}
 
       - name: Prune already-have files
+        if: always()
         run: |
           set -e
           HAVE_GZ="runner/state/${{ inputs.run_tag }}/have.txt.gz"
@@ -65,11 +67,13 @@ jobs:
           # Build list ONLY from requested countries (not everything in out/)
           CCS="$(echo "${{ inputs.countries }}" | tr ',' ' ' | tr '[:lower:]' '[:upper:]')"
           : > /tmp/all.txt
-          for c in $CCS; do
-            if [ -d "out/$c" ]; then
-              ( cd out && find "$c" -type f -name '*.json' -print ) >> /tmp/all.txt
-            fi
-          done
+          if [ -d "out" ]; then
+            for c in $CCS; do
+              if [ -d "out/$c" ]; then
+                ( cd out && find "$c" -type f -name '*.json' -print ) >> /tmp/all.txt
+              fi
+            done
+          fi
           sort -u /tmp/all.txt -o /tmp/all.txt
 
           # Remove files that we already have locally (duplicates)
@@ -78,11 +82,11 @@ jobs:
             [ -n "$rel" ] && rm -f "out/$rel" || true
           done < /tmp/dups.txt
 
-
       - name: Package artifacts (per country directory)
+        if: always()
         run: |
           mkdir -p artifacts
-          cd out || exit 0
+          cd out 2>/dev/null || exit 0
 
           CCS="$(echo "${{ inputs.countries }}" | tr ',' ' ' | tr '[:lower:]' '[:upper:]')"
           for d in $CCS; do
@@ -91,9 +95,15 @@ jobs:
             fi
           done
 
+          # Also include partition state files so you can resume precisely
+          if ls state_*.json >/dev/null 2>&1; then
+            zip -r ../artifacts/state_json.zip state_*.json
+          fi
+
           cd -
 
       - name: Upload artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: research1-output-${{ inputs.run_tag }}
