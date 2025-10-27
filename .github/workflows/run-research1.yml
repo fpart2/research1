@@ -55,11 +55,23 @@ jobs:
           else
             : > /tmp/have.txt
           fi
-          ( cd out && find . -type f -name '*.json' -print | sed 's|^\./||' | sort -u ) > /tmp/all.txt
+
+          # Build list ONLY from requested countries (not everything in out/)
+          CCS="$(echo "${{ inputs.countries }}" | tr ',' ' ' | tr '[:lower:]' '[:upper:]')"
+          : > /tmp/all.txt
+          for c in $CCS; do
+            if [ -d "out/$c" ]; then
+              ( cd out && find "$c" -type f -name '*.json' -print ) >> /tmp/all.txt
+            fi
+          done
+          sort -u /tmp/all.txt -o /tmp/all.txt
+
+          # Remove files that we already have locally (duplicates)
           comm -12 /tmp/all.txt /tmp/have.txt > /tmp/dups.txt || true
           while IFS= read -r rel; do
             [ -n "$rel" ] && rm -f "out/$rel" || true
           done < /tmp/dups.txt
+
 
       - name: Package artifacts (per country directory)
         run: |
