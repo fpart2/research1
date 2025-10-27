@@ -14,6 +14,12 @@ on:
         required: true
         default: ""
         type: string
+      countries:                      # <-- NEW (used by prune + packaging)
+        description: "Comma list of countries (e.g. FR,DE)"
+        required: true
+        default: ""
+        type: string
+
 
 jobs:
   run:
