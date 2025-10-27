@@ -77,14 +77,16 @@ jobs:
         run: |
           mkdir -p artifacts
           cd out || exit 0
-          shopt -s nullglob
-          for d in */ ; do
-            d="${d%/}"
-            if find "$d" -type f -name '*.json' -print -quit | grep -q . ; then
+
+          CCS="$(echo "${{ inputs.countries }}" | tr ',' ' ' | tr '[:lower:]' '[:upper:]')"
+          for d in $CCS; do
+            if [ -d "$d" ] && find "$d" -type f -name '*.json' -print -quit | grep -q . ; then
               zip -r "../artifacts/${d}.zip" "$d"
             fi
           done
+
           cd -
+
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
