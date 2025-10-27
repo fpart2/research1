@@ -14,7 +14,7 @@ on:
         required: true
         default: ""
         type: string
-      countries:                      # <-- NEW (used by prune + packaging)
+      countries:
         description: "Comma list of countries (e.g. FR,DE)"
         required: true
         default: ""
@@ -94,9 +94,11 @@ jobs:
           cd -
 
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: research1-output-${{ inputs.run_tag }}
-          path: artifacts/*.zip
-          compression-level: 0
+- name: Upload artifacts
+  uses: actions/upload-artifact@v4
+  with:
+    name: research1-output-${{ inputs.run_tag }}
+    path: artifacts/*.zip
+    if-no-files-found: ignore
+    compression-level: 0
+
