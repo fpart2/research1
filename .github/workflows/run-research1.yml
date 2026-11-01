@@ -54,7 +54,11 @@ jobs:
         run: |
           mkdir -p out
           CK="runner/state/${{ inputs.checkpoint_tag }}/checkpoint.zip"
-          if [ -f "$CK" ]; then
+          if [ -n "${{ inputs.checkpoint_tag }}" ]; then
+            if [ ! -f "$CK" ]; then
+              echo "ERROR: required continuation checkpoint missing: $CK" >&2
+              exit 1
+            fi
             unzip -o "$CK" -d out
           fi
 
