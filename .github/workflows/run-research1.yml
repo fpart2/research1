@@ -45,6 +45,15 @@ jobs:
           python -m pip install -U pip
           if [ -f runner/requirements.txt ]; then pip install -r runner/requirements.txt; fi
 
+      - name: Restore continuation checkpoint
+        run: |
+          CK="runner/state/${{ inputs.run_tag }}/checkpoint.zip"
+          mkdir -p out
+          if [ -f "$CK" ]; then
+            unzip -o "$CK" -d out
+            echo "[batch] Previous checkpoint restored"
+          fi
+
       - name: Run task
         timeout-minutes: 330   # ~5.5h, leaves time to package/upload before GH kills at 6h
         run: |
@@ -96,9 +105,7 @@ jobs:
           done
 
           # Also include partition state files so you can resume precisely
-          if ls state_*.json >/dev/null 2>&1; then
-            zip -r ../artifacts/state_json.zip state_*.json
-          fi
+          find . -maxdepth 1 -type f \( -name 'state_*.json' -o -name 'planning_*.json' -o -name 'batch_status.json' \) -print0 | xargs -0 -r zip -q ../artifacts/state_json.zip
 
           cd -
 
