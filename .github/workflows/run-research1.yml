@@ -29,6 +29,7 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout public repo
         uses: actions/checkout@v4
@@ -63,7 +64,7 @@ jobs:
           fi
 
       - name: Run task
-        timeout-minutes: 330   # ~5.5h, leaves time to package/upload before GH kills at 6h
+        timeout-minutes: 55   # scraper requests stop at 50 minutes, leaving time for packaging
         run: |
           mkdir -p out
           # All flags come in via ${{ inputs.args }}
@@ -116,8 +117,8 @@ jobs:
           if [ -f research1_batch_status.json ]; then
             zip -r ../artifacts/continuation_status.zip research1_batch_status.json
           fi
-          if [ -f research1_planning_cache.json ]; then
-            zip -r ../artifacts/continuation_planning.zip research1_planning_cache.json
+          if [ -f research1_planning_cache.json ] || [ -f research1_planning_cache.jsonl ]; then
+            zip -r ../artifacts/continuation_planning.zip research1_planning_cache.json* 
           fi
 
           # Also include partition state files so you can resume precisely
