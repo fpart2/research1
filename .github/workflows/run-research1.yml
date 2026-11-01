@@ -45,27 +45,12 @@ jobs:
           python -m pip install -U pip
           if [ -f runner/requirements.txt ]; then pip install -r runner/requirements.txt; fi
 
-      - name: Restore checkpoint
-        env:
-          RUN_TAG: ${{ inputs.run_tag }}
-          COUNTRIES: ${{ inputs.countries }}
-        run: |
-          mkdir -p out
-          for c in $(echo "$COUNTRIES" | tr ',' ' ' | tr '[:lower:]' '[:upper:]'); do
-            src="runner/state/$RUN_TAG/state_${c}_partitions.json"
-            if [ -f "$src" ]; then cp "$src" "out/state_${c}_partitions.json"; fi
-          done
-
       - name: Run task
         timeout-minutes: 330   # ~5.5h, leaves time to package/upload before GH kills at 6h
-        env:
-          TASK_ARGS: ${{ inputs.args }}
         run: |
-          python - <<'PYRUN'
-          import os, shlex, subprocess, sys
-          argv = [sys.executable, "runner/research1_task.py", "--out", "out"] + shlex.split(os.environ["TASK_ARGS"])
-          sys.exit(subprocess.call(argv))
-          PYRUN
+          mkdir -p out
+          # All flags come in via ${{ inputs.args }}
+          python runner/research1_task.py --out out ${{ inputs.args }}
 
       - name: Prune already-have files
         if: always()
@@ -123,5 +108,5 @@ jobs:
         with:
           name: research1-output-${{ inputs.run_tag }}
           path: artifacts/*.zip
-          if-no-files-found: warn
+          if-no-files-found: ignore
           compression-level: 0
