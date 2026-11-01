@@ -14,14 +14,14 @@ on:
         required: true
         default: ""
         type: string
+      checkpoint_tag:
+        description: "Run tag containing resumable queue checkpoint"
+        required: false
+        default: ""
+        type: string
       countries:
         description: "Comma list of countries (e.g. FR,DE)"
         required: true
-        default: ""
-        type: string
-      checkpoint_tag:
-        description: "Original run tag used to restore continuation state"
-        required: false
         default: ""
         type: string
 
@@ -29,7 +29,6 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - name: Checkout public repo
         uses: actions/checkout@v4
@@ -54,17 +53,14 @@ jobs:
       - name: Restore continuation checkpoint
         run: |
           mkdir -p out
-          CK="runner/state/${{ inputs.checkpoint_tag }}/checkpoint.zip"
           if [ -n "${{ inputs.checkpoint_tag }}" ]; then
-            if [ ! -f "$CK" ]; then
-              echo "ERROR: required continuation checkpoint missing: $CK" >&2
-              exit 1
-            fi
+            CK="runner/state/${{ inputs.checkpoint_tag }}/checkpoint.zip"
+            test -f "$CK" || { echo "Missing checkpoint $CK" >&2; exit 1; }
             unzip -o "$CK" -d out
           fi
 
       - name: Run task
-        timeout-minutes: 55   # scraper requests stop at 50 minutes, leaving time for packaging
+        timeout-minutes: 330   # ~5.5h, leaves time to package/upload before GH kills at 6h
         run: |
           mkdir -p out
           # All flags come in via ${{ inputs.args }}
@@ -113,12 +109,11 @@ jobs:
             fi
           done
 
-          # Continuation-only: status and planning cache travel with each part.
           if [ -f research1_batch_status.json ]; then
             zip -r ../artifacts/continuation_status.zip research1_batch_status.json
           fi
-          if [ -f research1_planning_cache.json ] || [ -f research1_planning_cache.jsonl ]; then
-            zip -r ../artifacts/continuation_planning.zip research1_planning_cache.json* 
+          if [ -f research1_queue_state.json ]; then
+            zip -r ../artifacts/continuation_checkpoint.zip research1_queue_state.json
           fi
 
           # Also include partition state files so you can resume precisely
