@@ -19,6 +19,11 @@ on:
         required: true
         default: ""
         type: string
+      checkpoint_tag:
+        description: "Original run tag used to restore continuation state"
+        required: false
+        default: ""
+        type: string
 
 
 jobs:
@@ -47,11 +52,10 @@ jobs:
 
       - name: Restore continuation checkpoint
         run: |
-          CK="runner/state/${{ inputs.run_tag }}/checkpoint.zip"
           mkdir -p out
+          CK="runner/state/${{ inputs.checkpoint_tag }}/checkpoint.zip"
           if [ -f "$CK" ]; then
             unzip -o "$CK" -d out
-            echo "[batch] Previous checkpoint restored"
           fi
 
       - name: Run task
@@ -104,8 +108,18 @@ jobs:
             fi
           done
 
+          # Continuation-only: status and planning cache travel with each part.
+          if [ -f research1_batch_status.json ]; then
+            zip -r ../artifacts/continuation_status.zip research1_batch_status.json
+          fi
+          if [ -f research1_planning_cache.json ]; then
+            zip -r ../artifacts/continuation_planning.zip research1_planning_cache.json
+          fi
+
           # Also include partition state files so you can resume precisely
-          find . -maxdepth 1 -type f \( -name 'state_*.json' -o -name 'planning_*.json' -o -name 'batch_status.json' \) -print0 | xargs -0 -r zip -q ../artifacts/state_json.zip
+          if ls state_*.json >/dev/null 2>&1; then
+            zip -r ../artifacts/state_json.zip state_*.json
+          fi
 
           cd -
 
